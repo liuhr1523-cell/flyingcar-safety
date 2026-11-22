@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="亿航 EH216-S 载人 eVTOL 全方位深度安全分析 - 基于系统安全工程方法 - 飞行汽车技术基础课程作业2">
+<title>亿航 EH216-S · 全方位深度安全分析 | 系统安全工程视角</title>
+<style>
+:root{
+  --bg:#070d1b; --bg2:#0b1428; --panel:#101c36; --panel2:#142343;
+  --line:rgba(255,255,255,.09); --line2:rgba(120,170,255,.22);
+  --txt:#e8eefc; --txt2:#9fb0d0; --txt3:#6f83a8;
+  --blue:#3b82f6; --cyan:#22d3ee; --violet:#8b5cf6; --amber:#fbbf24;
+  --green:#34d399; --red:#fb7185; --orange:#fb923c;
+  --grad:linear-gradient(120deg,#3b82f6 0%,#22d3ee 55%,#8b5cf6 100%);
+  --grad-safe:linear-gradient(120deg,#fb7185 0%,#fbbf24 55%,#34d399 100%);
+  --shadow:0 24px 60px rgba(0,0,0,.35);
+  --max:1180px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  background:var(--bg);color:var(--txt);line-height:1.75;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:rgba(251,113,133,.35);color:#fff}
+a{color:var(--cyan);text-decoration:none;transition:.2s}
+a:hover{color:#fff}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+.mono{font-family:"SF Mono",Consolas,"Roboto Mono",monospace}
+.grad-txt{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.safe-txt{background:var(--grad-safe);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+#progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--grad-safe);z-index:1000;box-shadow:0 0 12px rgba(251,113,133,.6)}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:900;backdrop-filter:blur(18px);
+  background:rgba(7,13,27,.72);border-bottom:1px solid var(--line);transition:.3s}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.5px;font-size:15px}
+.brand .logo{width:34px;height:34px;border-radius:10px;background:var(--grad-safe);display:grid;place-items:center;
+  box-shadow:0 6px 18px rgba(251,113,133,.4)}
+.brand .logo svg{width:20px;height:20px}
+.nav-links{display:flex;gap:4px;list-style:none;flex-wrap:wrap}
+.nav-links a{color:var(--txt2);font-size:12.5px;padding:7px 9px;border-radius:8px;font-weight:500}
+.nav-links a:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-toggle{display:none;background:none;border:1px solid var(--line);color:var(--txt);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:18px}
+
+/* HERO */
+.hero{position:relative;min-height:100vh;display:flex;align-items:center;padding-top:80px;overflow:hidden}
+.hero-bg{position:absolute;inset:0;z-index:0}
+.hero-bg::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(900px 500px at 78% 18%,rgba(251,113,133,.18),transparent 60%),
+             radial-gradient(700px 500px at 12% 82%,rgba(251,191,36,.14),transparent 60%),
+             radial-gradient(600px 400px at 50% 50%,rgba(59,130,246,.12),transparent 60%),
+             linear-gradient(180deg,#070d1b,#0a1330 70%,#070d1b)}
+.grid-overlay{position:absolute;inset:0;opacity:.28;
+  background-image:linear-gradient(rgba(120,170,255,.08) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(120,170,255,.08) 1px,transparent 1px);
+  background-size:52px 52px;mask-image:radial-gradient(ellipse at 50% 40%,#000 30%,transparent 78%)}
+.hero-inner{position:relative;z-index:2;width:100%}
+.hero .tag{display:inline-flex;align-items:center;gap:8px;padding:7px 15px;border-radius:100px;
+  background:rgba(251,113,133,.1);border:1px solid rgba(251,113,133,.3);color:var(--red);
+  font-size:12.5px;font-weight:700;letter-spacing:.6px;margin-bottom:26px}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 0 0 rgba(251,113,133,.7);animation:pulse 2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 10px rgba(251,113,133,0)}100%{box-shadow:0 0 0 0 rgba(251,113,133,0)}}
+.hero h1{font-size:clamp(38px,6.2vw,74px);line-height:1.08;font-weight:900;letter-spacing:-1.5px;margin-bottom:8px}
+.hero h1 .sub{display:block;font-size:clamp(19px,2.6vw,32px);font-weight:500;color:var(--txt2);margin-top:12px;letter-spacing:0}
+.hero .lead{max-width:790px;color:var(--txt2);font-size:clamp(15px,1.6vw,18px);margin:26px 0 32px}
+.hero .lead strong{color:var(--txt);font-weight:600}
+.hero-meta{display:flex;flex-wrap:wrap;gap:10px 26px;color:var(--txt3);font-size:13px;margin-bottom:40px}
+.hero-meta span{display:flex;align-items:center;gap:7px}
+.hero-meta svg{width:15px;height:15px;opacity:.7}
+.hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.stat{background:linear-gradient(160deg,rgba(20,35,67,.85),rgba(11,20,40,.6));
+  border:1px solid var(--line2);border-radius:16px;padding:22px 20px;position:relative;overflow:hidden}
+.stat::after{content:"";position:absolute;top:0;left:0;width:100%;height:2px;background:var(--grad-safe);opacity:.8}
+.stat .num{font-size:clamp(25px,3.2vw,38px);font-weight:900;line-height:1;letter-spacing:-1px}
+.stat .unit{font-size:15px;font-weight:600;color:var(--txt2);margin-left:3px}
+.stat .label{color:var(--txt3);font-size:12.5px;margin-top:10px;letter-spacing:.3px}
+.scroll-hint{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);z-index:3;color:var(--txt3);font-size:11px;letter-spacing:2px;text-align:center;animation:bob 2.4s infinite}
+.scroll-hint .mouse{width:22px;height:34px;border:1.5px solid var(--txt3);border-radius:12px;margin:0 auto 8px;position:relative}
+.scroll-hint .mouse::after{content:"";position:absolute;top:6px;left:50%;width:3px;height:7px;border-radius:2px;background:var(--red);transform:translateX(-50%);animation:wheel 2.4s infinite}
+@keyframes wheel{0%{opacity:0;transform:translate(-50%,0)}40%{opacity:1}100%{opacity:0;transform:translate(-50%,12px)}}
+@keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(6px)}}
+
+/* SECTIONS */
+section{padding:96px 0;position:relative}
+section.alt{background:linear-gradient(180deg,transparent,rgba(16,28,54,.5),transparent)}
+.sec-head{margin-bottom:48px;max-width:840px}
+.eyebrow{display:inline-flex;align-items:center;gap:12px;font-size:12.5px;font-weight:800;letter-spacing:2px;color:var(--red);text-transform:uppercase;margin-bottom:14px}
+.eyebrow::before{content:"";width:28px;height:2px;background:var(--red)}
+.sec-head h2{font-size:clamp(28px,3.6vw,44px);font-weight:850;letter-spacing:-.8px;line-height:1.2;margin-bottom:14px}
+.sec-head p{color:var(--txt2);font-size:15.5px}
+.sec-tag{display:inline-block;font-size:11px;color:var(--txt3);border:1px dashed var(--line2);padding:3px 10px;border-radius:100px;margin-top:10px}
+
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* CARDS */
+.card{background:linear-gradient(160deg,rgba(20,35,67,.7),rgba(11,20,40,.5));border:1px solid var(--line);border-radius:18px;padding:28px;transition:.3s}
+.card:hover{border-color:var(--line2);transform:translateY(-3px);box-shadow:var(--shadow)}
+.card h3{font-size:19px;font-weight:750;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.card p{color:var(--txt2);font-size:14.5px}
+.card p+p{margin-top:12px}
+.icon-box{width:40px;height:40px;border-radius:11px;background:rgba(251,113,133,.14);border:1px solid rgba(251,113,133,.25);display:grid;place-items:center;flex:none;color:var(--red)}
+.icon-box svg{width:20px;height:20px}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+
+/* SUMMARY */
+.summary-box{border-left:3px solid var(--red);background:rgba(251,113,133,.05);border-radius:0 14px 14px 0;padding:24px 28px;margin-bottom:34px}
+.summary-box p{color:var(--txt);font-size:16px}
+.summary-box strong{color:var(--red)}
+.sum-list{list-style:none;display:grid;gap:14px}
+.sum-list li{display:flex;gap:16px;padding:18px 20px;background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:14px;transition:.25s}
+.sum-list li:hover{background:rgba(251,113,133,.05);border-color:var(--line2)}
+.sum-n{flex:none;width:30px;height:30px;border-radius:9px;background:var(--grad-safe);display:grid;place-items:center;font-weight:800;font-size:13px;color:#06122b}
+.sum-list b{color:var(--txt)}
+.sum-list span{color:var(--txt2);font-size:14px}
+
+/* PROCESS STEPS (9 steps) */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.step{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:16px;padding:20px;position:relative;transition:.25s}
+.step:hover{border-color:rgba(251,113,133,.4);background:rgba(251,113,133,.05)}
+.step .sn{font-family:monospace;font-size:12px;color:var(--red);font-weight:800}
+.step h4{font-size:15.5px;margin:6px 0 8px;font-weight:750}
+.step p{font-size:13px;color:var(--txt2)}
+.step .tools{margin-top:10px;display:flex;flex-wrap:wrap;gap:5px}
+.step .tools span{font-size:10px;font-family:monospace;background:rgba(59,130,246,.12);border:1px solid var(--line2);padding:2px 7px;border-radius:5px;color:var(--cyan)}
+
+/* V-MODEL */
+.vmodel{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line2);border-radius:16px;overflow:hidden}
+.vm-side{padding:22px}
+.vm-left{background:rgba(59,130,246,.06);border-right:1px solid var(--line2)}
+.vm-right{background:rgba(52,211,153,.05)}
+.vm-title{font-size:14px;font-weight:800;margin-bottom:14px;color:var(--txt)}
+.vm-list{list-style:none;display:grid;gap:8px}
+.vm-list li{font-size:12.5px;color:var(--txt2);padding:7px 11px;background:rgba(0,0,0,.2);border-radius:8px;border-left:2px solid var(--blue)}
+.vm-right .vm-list li{border-left-color:var(--green)}
+
+/* SAFETY DIMENSIONS */
+.dims{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.dim{border-radius:16px;padding:20px 14px;text-align:center;border:1px solid var(--line);background:rgba(255,255,255,.025);transition:.25s}
+.dim:hover{transform:translateY(-4px)}
+.dim .di{font-size:26px;margin-bottom:8px}
+.dim .dn{font-size:14px;font-weight:750;margin-bottom:4px}
+.dim .de{font-size:10.5px;color:var(--txt3);font-family:monospace;margin-bottom:10px}
+.dim .dd{font-size:12px;color:var(--txt2);text-align:left}
+.dim:nth-child(1){border-top:3px solid #94a3b8}
+.dim:nth-child(2){border-top:3px solid var(--blue)}
+.dim:nth-child(3){border-top:3px solid var(--violet)}
+.dim:nth-child(4){border-top:3px solid var(--amber)}
+.dim:nth-child(5){border-top:3px solid var(--green)}
+
+/* redundancy architecture */
+.arch{background:linear-gradient(160deg,rgba(20,35,67,.7),rgba(11,20,40,.5));border:1px solid var(--line);border-radius:18px;padding:26px}
+.arch-node{border:1px solid var(--line2);border-radius:12px;padding:14px;text-align:center;background:rgba(59,130,246,.07)}
+.arch-node b{display:block;font-size:14px}
+.arch-node span{font-size:11.5px;color:var(--txt3)}
+.arch-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px}
+.arch-big{text-align:center;padding:20px;border-radius:14px;background:rgba(251,113,133,.07);border:1px solid rgba(251,113,133,.3)}
+.arch-big .v{font-size:32px;font-weight:900;color:var(--red)}
+.arch-big .l{font-size:12px;color:var(--txt2);margin-top:4px}
+
+/* chart cards */
+.chart-card{background:linear-gradient(160deg,rgba(20,35,67,.7),rgba(11,20,40,.5));border:1px solid var(--line);border-radius:18px;padding:26px}
+.chart-title{font-size:16px;font-weight:750;margin-bottom:4px}
+.chart-sub{color:var(--txt3);font-size:12.5px;margin-bottom:22px}
+.chart-wrap{width:100%;overflow-x:auto}
+svg.chart{width:100%;height:auto;display:block;min-width:280px}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:16px;font-size:12px;color:var(--txt2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+
+/* tables */
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px}
+table{width:100%;border-collapse:collapse;min-width:640px;font-size:13.5px}
+thead th{background:rgba(251,113,133,.1);color:var(--txt);text-align:left;padding:15px 16px;font-weight:750;font-size:13px;white-space:nowrap;border-bottom:1px solid var(--line2)}
+tbody td{padding:14px 16px;border-bottom:1px solid var(--line);color:var(--txt2);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.03)}
+tbody td:first-child{color:var(--txt);font-weight:650}
+.hl-col{background:rgba(34,211,238,.05)}
+.pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:100px;font-weight:700;white-space:nowrap}
+.p-red{background:rgba(251,113,133,.14);color:var(--red)}
+.p-amber{background:rgba(251,191,36,.14);color:var(--amber)}
+.p-green{background:rgba(52,211,153,.14);color:var(--green)}
+.p-blue{background:rgba(59,130,246,.14);color:var(--blue)}
+
+/* risk matrix */
+.risk-row{display:flex;gap:16px;align-items:flex-start;padding:18px 0;border-bottom:1px solid var(--line)}
+.risk-row:last-child{border-bottom:none}
+.risk-lv{flex:none;font-size:11px;font-weight:800;padding:5px 11px;border-radius:100px;margin-top:2px;white-space:nowrap}
+.r-h{background:rgba(251,113,133,.15);color:var(--red)}
+.r-m{background:rgba(251,191,36,.15);color:var(--amber)}
+.r-l{background:rgba(52,211,153,.15);color:var(--green)}
+.risk-body b{color:var(--txt);font-size:15px}
+.risk-body p{color:var(--txt2);font-size:13.5px;margin-top:3px}
+
+/* FTA tree */
+.fta{display:flex;flex-direction:column;align-items:center;gap:0;font-size:13px}
+.fta-top{background:rgba(251,113,133,.14);border:1px solid rgba(251,113,133,.4);border-radius:10px;padding:12px 20px;font-weight:750;text-align:center;max-width:420px}
+.fta-gate{display:inline-block;background:rgba(251,191,36,.14);border:1px solid rgba(251,191,36,.4);border-radius:6px;padding:2px 12px;font-family:monospace;font-size:11px;font-weight:800;color:var(--amber);margin:12px 0}
+.fta-line{width:2px;height:18px;background:var(--line2)}
+.fta-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;position:relative}
+.fta-row::before{content:"";position:absolute;top:-12px;left:50%;transform:translateX(-50%);width:60%;height:2px;background:var(--line2)}
+.fta-leaf{background:rgba(59,130,246,.09);border:1px solid var(--line2);border-radius:9px;padding:9px 13px;text-align:center;font-size:12px;position:relative}
+.fta-leaf::before{content:"";position:absolute;top:-12px;left:50%;width:2px;height:12px;background:var(--line2)}
+.fta-leaf b{display:block;color:var(--txt)}
+.fta-leaf span{color:var(--txt3);font-size:10.5px}
+
+/* verdict */
+.verdict{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.v-item{border:1px solid var(--line);border-radius:16px;padding:24px;background:rgba(255,255,255,.025)}
+.v-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px}
+.v-name{font-weight:750;font-size:15px}
+.v-score{font-size:12px;font-weight:800;padding:5px 11px;border-radius:100px;white-space:nowrap}
+.v-green{background:rgba(52,211,153,.15);color:var(--green)}
+.v-amber{background:rgba(251,191,36,.15);color:var(--amber)}
+.v-red{background:rgba(251,113,133,.15);color:var(--red)}
+.meter{height:7px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden;margin-bottom:12px}
+.meter i{display:block;height:100%;border-radius:5px;width:0;transition:width 1.4s cubic-bezier(.2,.8,.2,1)}
+.v-item p{font-size:13.5px;color:var(--txt2)}
+
+/* GSN */
+.gsn-tree{list-style:none;display:grid;gap:10px}
+.gsn-tree li{padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.025);font-size:13.5px;position:relative;padding-left:42px}
+.gsn-tree li::before{content:attr(data-tag);position:absolute;left:12px;top:12px;font-family:monospace;font-size:10px;font-weight:800;color:var(--green);border:1px solid rgba(52,211,153,.4);border-radius:4px;padding:1px 4px}
+.gsn-tree li b{color:var(--txt)}
+.gsn-tree li.level2{margin-left:28px}
+.gsn-tree li.level3{margin-left:56px}
+
+/* refs */
+.ref-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.ref{display:flex;gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02);transition:.25s}
+.ref:hover{border-color:var(--line2);background:rgba(251,113,133,.05)}
+.ref .rn{flex:none;font-family:monospace;color:var(--red);font-size:12px;font-weight:700}
+.ref .rt{font-size:13px;color:var(--txt2);line-height:1.5}
+.ref .rt b{display:block;color:var(--txt);font-weight:650;margin-bottom:2px}
+.ref.pdfref{border-color:rgba(251,191,36,.25)}
+
+.note{font-size:12px;color:var(--txt3);margin-top:16px;line-height:1.7}
+
+/* conclusion */
+.conclusion{background:linear-gradient(135deg,rgba(251,113,133,.14),rgba(251,191,36,.08));border:1px solid rgba(251,113,133,.3);border-radius:22px;padding:clamp(28px,5vw,52px);text-align:center}
+.conclusion h3{font-size:clamp(22px,3vw,32px);font-weight:850;margin-bottom:18px}
+.conclusion p{color:var(--txt2);font-size:16px;max-width:820px;margin:0 auto 14px}
+.conclusion .big{font-size:clamp(18px,2.4vw,24px);color:var(--txt);font-weight:650}
+
+/* footer */
+footer{border-top:1px solid var(--line);padding:44px 0 34px;background:rgba(7,13,27,.7)}
+.foot-grid{display:flex;justify-content:space-between;flex-wrap:wrap;gap:24px;align-items:flex-start}
+.foot-brand{font-weight:800;font-size:16px;margin-bottom:8px}
+.foot-note{color:var(--txt3);font-size:12.5px;max-width:560px;line-height:1.8}
+.foot-meta{color:var(--txt3);font-size:12.5px;text-align:right;line-height:1.9}
+.disclaimer{margin-top:30px;padding-top:22px;border-top:1px solid var(--line);color:var(--txt3);font-size:11.5px;line-height:1.8}
+#toTop{position:fixed;right:22px;bottom:22px;width:44px;height:44px;border-radius:12px;background:var(--grad-safe);border:none;color:#06122b;font-size:20px;font-weight:800;cursor:pointer;box-shadow:0 10px 30px rgba(251,113,133,.5);opacity:0;pointer-events:none;transition:.35s;z-index:800}
+#toTop.show{opacity:1;pointer-events:auto}
+
+@media(max-width:1100px){.dims{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:980px){
+  .nav-links{display:none;position:absolute;top:64px;left:0;right:0;flex-direction:column;background:rgba(7,13,27,.97);padding:12px;border-bottom:1px solid var(--line)}
+  .nav-links.open{display:flex}.nav-toggle{display:block}
+  .hero-stats,.grid-4,.verdict{grid-template-columns:repeat(2,1fr)}
+  .grid-3,.steps{grid-template-columns:repeat(2,1fr)}
+  .arch-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:640px){
+  section{padding:70px 0}
+  .grid-2,.grid-3,.grid-4,.verdict,.steps,.ref-grid{grid-template-columns:1fr}
+  .hero-stats,.dims,.arch-grid{grid-template-columns:repeat(2,1fr)}
+  .vmodel{grid-template-columns:1fr}.vm-left{border-right:none;border-bottom:1px solid var(--line2)}
+  .fta-row::before{display:none}
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<nav>
+  <div class="wrap">
+    <a href="#top" class="brand">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#06122b" stroke-width="2"><path d="M12 2l8 4v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span>
+      <span>EH216-S <span style="color:var(--txt3);font-weight:500">| 深度安全分析</span></span>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="菜单">☰</button>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#summary">摘要</a></li>
+      <li><a href="#framework">方法论</a></li>
+      <li><a href="#dimensions">安全维度</a></li>
+      <li><a href="#hazard">危害分析</a></li>
+      <li><a href="#arch">安全架构</a></li>
+      <li><a href="#design">安全设计</a></li>
+      <li><a href="#verify">测试验证</a></li>
+      <li><a href="#argument">安全论证</a></li>
+      <li><a href="#standards">适航标准</a></li>
+      <li><a href="#risks">风险短板</a></li>
+      <li><a href="#conclusion">结论</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero" id="top">
+  <div class="hero-bg"><div class="grid-overlay"></div></div>
+  <div class="wrap hero-inner">
+    <span class="tag"><span class="pulse"></span> 课程作业-2 · 飞行汽车全方位安全分析 · Safety Systems Engineering</span>
+    <h1>亿航 EH216-S
+      <span class="sub safe-txt">基于系统安全工程的全方位深度安全分析</span>
+    </h1>
+    <p class="lead">沿用作业1选型，从<strong>系统工程 → 安全系统工程</strong>的方法论出发，沿"整机功能场景 → 危害分析 → 安全架构 → 软硬件/电气机械安全设计 → 测试验证 → 运行安全论证"的完整链路，对这台全球首个四证齐全的载人 eVTOL 做<strong>可追溯、分级、可审计</strong>的深度安全剖析。</p>
+    <div class="hero-meta">
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 证据截止：2026-11-22</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> 阅读时长约 22 分钟</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19h16M12 3l8 4v6c0 5-4 8-8 9-4-1-8-4-8-9V7z"/></svg> 依据：课程教材第四/五章 · CAAC · 亿航 IR · 权威媒体</span>
+    </div>
+    <div class="hero-stats">
+      <div class="stat reveal"><div class="num safe-txt">10<span class="unit">⁻⁹</span></div><div class="label">灾难性失效概率目标 / 飞行小时</div></div>
+      <div class="stat reveal"><div class="num safe-txt"><span class="cnt" data-to="5">0</span><span class="unit">/16</span></div><div class="label">停转仍可安全飞行的旋翼数</div></div>
+      <div class="stat reveal"><div class="num safe-txt"><span class="cnt" data-to="450">0</span><span class="unit">+ 科目</span></div><div class="label">适航符合性验证试验</div></div>
+      <div class="stat reveal"><div class="num safe-txt"><span class="cnt" data-to="3">0</span><span class="unit">套</span></div><div class="label">独立飞控 · 十二组电池冗余</div></div>
+    </div>
+  </div>
+  <div class="scroll-hint"><div class="mouse"></div>SCROLL TO EXPLORE</div>
+</header>
+
+<!-- SUMMARY -->
+<section id="summary">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Executive Safety Summary</div>
+      <h2>安全摘要：它为什么敢载人？</h2>
+      <p>把"安全感"还原成可核对的冗余架构、失效目标与验证证据。</p>
+    </div>
+    <div class="summary-box reveal">
+      <p>EH216-S 的安全逻辑不是"飞得更快更高"，而是<strong>把失效当作设计的起点</strong>：8 轴 16 旋翼分布式动力、三套飞控、十二组电池、Fail-Safe 故障保护与地面指挥中心实时联动，共同服务于一个目标——在<strong>灾难性失效概率 10⁻⁹/飞行小时且不源于单点失效</strong>的适航红线之下运行。它的取证本身，就是一次完整的系统安全工程实践。</p>
+    </div>
+    <ul class="sum-list">
+      <li class="reveal"><div class="sum-n">01</div><div><b>架构层面：以冗余换安全。</b> <span>16 个旋翼/电机相互独立，实测停转 5 个仍可安全起降；飞控、传感器、动力、电池及 BMS 均全备份，单一部件故障可无缝接管。</span></div></li>
+      <li class="reveal"><div class="sum-n">02</div><div><b>方法层面：符合航空安全范式。</b> <span>专用条件明确灾难性失效 10⁻⁹、非单点失效；审定中执行 FHA→PSSA→SSA 与共因分析，450+ 科目含人为硬件故障与电池起火模拟。</span></div></li>
+      <li class="reveal"><div class="sum-n">03</div><div><b>验证层面：海量试飞背书。</b> <span>取证前完成 4 万余架次试飞，累计安全飞行超 8 万架次；单动力单元失效、极端温度、电磁兼容、应急降落伞开伞等试验均通过。</span></div></li>
+      <li class="reveal"><div class="sum-n">04</div><div><b>运行层面：以限制换安全裕度。</b> <span>商业运营被限定在隔离空域、昼间、良好气象、远程机组视线范围内，暂不支持水上起降——用运行边界弥补能力边界。</span></div></li>
+      <li class="reveal"><div class="sum-n">05</div><div><b>短板层面：跨领域安全仍是开放题。</b> <span>SOTIF（性能局限）、行为安全（多机/空中交通交互）、信息安全（数据链与电磁攻击）、电池热失控与高密度城市运行风险，仍需全生命周期持续论证。</span></div></li>
+    </ul>
+  </div>
+</section>
+
+<!-- FRAMEWORK -->
+<section class="alt" id="framework">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Methodology · From SE to SSE</div>
+      <h2>方法论：从系统工程到安全系统工程</h2>
+      <p>依据课程教材第五章"安全系统工程"专题，构建本报告的分析骨架。</p>
+      <span class="sec-tag">来源：第五章 PDF · Page 34–87</span>
+    </div>
+    <div class="grid-3" style="margin-bottom:22px">
+      <div class="card reveal"><h3>系统工程 SE</h3><p>正向设计的 V 模型：涉众需求 → 需求定义 → 功能分解 → 系统架构 → 详细设计 → 产品实现 → 部件验证 → 系统集成 → 系统验证 → 系统确认 → 交付。标准基础：INCOSE SEH、ISO/IEC/IEEE 15288、OMG SysML。</p></div>
+      <div class="card reveal"><h3>安全系统工程 SSE</h3><p>系统工程的专业工程分支，聚焦 RAMS（可靠性 Reliability、可用性 Availability、维修性 Maintainability、安全性 Safety），把"安全"作为贯穿全生命周期的系统属性而非事后检验。</p></div>
+      <div class="card reveal"><h3>智能运载工具 SSE</h3><p>以"人–机–环境"系统视角分析，覆盖 0 安全文化到 8 运行安全论证的 9 个基本过程；对飞行汽车而言，需叠加航空适航与无人运行特有要求。</p></div>
+    </div>
+
+    <div class="sec-head reveal" style="margin:0 0 22px"><h2 style="font-size:26px">安全开发 9 步基本过程</h2><p>教材 Page 84–87："智能运载工具安全系统工程：基本过程 / 方法解析"，逐层映射到 EH216-S。</p></div>
+    <div class="steps">
+      <div class="step reveal"><div class="sn">STEP 0</div><h4>安全文化与安全管理</h4><p>组织、人员、生命周期、方法与工具的充分性；是新《民航法》与 OC 审核的核心。</p><div class="tools"><span>Safety Culture</span><span>SMS</span></div></div>
+      <div class="step reveal"><div class="sn">STEP 1</div><h4>整机功能与场景定义</h4><p>基于模型的功能定义与运行设计条件（ODC）场景分析，界定 ODD 边界。</p><div class="tools"><span>MBSE</span><span>ODC</span><span>SysML</span></div></div>
+      <div class="step reveal"><div class="sn">STEP 2</div><h4>安全分析方法</h4><p>整机 HARA/FHA/STPA，系统 FMEA/FTA/CCA/PSSA/SSA，组件 FMEDA/CAE。</p><div class="tools"><span>HARA</span><span>FHA</span><span>FTA</span><span>STPA</span></div></div>
+      <div class="step reveal"><div class="sn">STEP 3</div><h4>系统安全架构设计</h4><p>选择冗余架构 1oo2/2oo3/1oo2D 等，分配安全需求并隔离共因失效。</p><div class="tools"><span>1ooN</span><span>2oo3</span><span>1oo2D</span></div></div>
+      <div class="step reveal"><div class="sn">STEP 4</div><h4>硬件安全设计</h4><p>绝缘/短路/供电保护、高压互锁、故障检测；航空电池热管理与防火隔离。</p><div class="tools"><span>HVIL</span><span>DO-160</span></div></div>
+      <div class="step reveal"><div class="sn">STEP 5</div><h4>软件安全设计</h4><p>关注智能系统：飞控算法、感知决策的软件保障与失效防护。</p><div class="tools"><span>DO-178C</span><span>ISO 26262</span></div></div>
+      <div class="step reveal"><div class="sn">STEP 6</div><h4>电气/机械/化学安全</h4><p>振动/碰撞/滚翻防护、IP 防护、防火阻燃；动力电池热稳定性与热失控预警。</p><div class="tools"><span>Crashworthy</span><span>BMS</span></div></div>
+      <div class="step reveal"><div class="sn">STEP 7</div><h4>安全测试验证</h4><p>逻辑/具体/测试场景生成，组件—系统—整机逐级集成测试与安全确认。</p><div class="tools"><span>V&V</span><span>HIL</span><span>试飞</span></div></div>
+      <div class="step reveal"><div class="sn">STEP 8</div><h4>运行安全论证</h4><p>流程论证 + 产品论证（GSN/SACM），形成可被局方审查的安全案例。</p><div class="tools"><span>GSN</span><span>Safety Case</span></div></div>
+    </div>
+
+    <div class="chart-card reveal" style="margin-top:22px">
+      <div class="chart-title">V 模型：左侧安全开发 ↔ 右侧安全验证</div>
+      <div class="chart-sub">教材 Page 85–86："基于场景的安全开发"与"基于场景的安全测试验证"</div>
+      <div class="vmodel">
+        <div class="vm-side vm-left"><div class="vm-title">◀ V 模型左侧 · 分解与定义</div><ul class="vm-list">
+          <li>基于模型的整机功能定义</li><li>运行场景分析（ODC / ODD）</li><li>整机危害分析及风险评估（HARA/FHA/STPA）</li><li>整机安全概念与安全架构</li><li>基于场景的系统安全分析</li><li>系统安全需求提取</li><li>组件（硬件/软件/等）安全分析</li><li>组件安全需求提取与设计实现</li>
+        </ul></div>
+        <div class="vm-side vm-right"><div class="vm-title">V 模型右侧 · 集成与验证 ▶</div><ul class="vm-list">
+          <li>逻辑场景与性能边界定义</li><li>具体场景与测试场景生成</li><li>组件（硬件/软件/等）测试</li><li>系统集成与测试</li><li>整机集成与测试</li><li>整机安全确认</li><li>运行安全论证（Safety Case）</li><li>在役监测与持续迭代（ISMR）</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DIMENSIONS -->
+<section id="dimensions">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Five Safety Dimensions</div>
+      <h2>五维安全：不只"处理了故障就安全"</h2>
+      <p>教材 Page 68–76：即便处理了 E/E 故障，性能局限、人为误用、交互与外部攻击仍会带来风险。</p>
+      <span class="sec-tag">来源：第五章 PDF Page 68–76</span>
+    </div>
+    <div class="dims">
+      <div class="dim reveal"><div class="di">🛡️</div><div class="dn">被动安全</div><div class="de">NCAP / 碰撞法规</div><div class="dd">发生碰撞后如何保护乘员与行人。飞行汽车需额外考虑纵向、横向与垂直多维碰撞，以及整机坠落的乘员生存性。</div></div>
+      <div class="dim reveal"><div class="di">⚙️</div><div class="dn">功能安全</div><div class="de">ISO 26262 / DAL</div><div class="dd">降低 E/E 系统失效风险，通过安全分析、ASIL/DAL 分解与安全机制，在足够短时间内探测危害并回到安全状态。</div></div>
+      <div class="dim reveal"><div class="di">🧭</div><div class="dn">预期功能安全</div><div class="de">ISO 21448 (SOTIF)</div><div class="dd">降低性能局限与人为误用风险。对无人驾驶 eVTOL 尤为关键：传感器在雨雾/强光下的感知局限可能导致危险却非故障。</div></div>
+      <div class="dim reveal"><div class="di">🔄</div><div class="dn">行为安全</div><div class="de">IEEE P2846</div><div class="dd">降低与周围交通参与者交互的风险：安全间距、切入、路权、能见度。映射到低空即多机协同与有人机/无人机混合空域交互。</div></div>
+      <div class="dim reveal"><div class="di">🔐</div><div class="dn">信息安全</div><div class="de">ISO/SAE 21434 / TARA</div><div class="dd">降低外部攻击风险，通过威胁分析与风险评估（TARA）。对依赖 4G/5G 数据链与地面调度的 EH216-S，链路抗干扰与防入侵是安全底线。</div></div>
+    </div>
+    <div class="grid-2" style="margin-top:22px">
+      <div class="card reveal"><h3>飞行汽车安全潜在研究点</h3><p>教材 Page 78 归纳：主被动碰撞安全、电气安全与功能安全、预期功能安全、信息安全与电磁兼容、安全与风险评估。</p><p>设计阶段必须考虑：①危害分析与风险评估；②碰撞/避障与多维碰撞安全性（纵向/横向/垂直）；③飞行中火灾与车辆控制失效的对策；④雷暴、强风雨等极端天气的鲁棒性；⑤应急情况下的人员训练；⑥防范网络攻击、电磁攻击与入侵。</p></div>
+      <div class="card reveal"><h3>无人运行带来的新安全范式</h3><p>传统航空遵循 Fail-Safe（任何单点故障不致灾难）；分布式推进的 eVTOL 追求 Fail-Operational（多旋翼失效一两仍可继续飞行）。</p><p>但冗余本身引入新风险：更多电机、控制器与更复杂算法意味着更多潜在故障点。NASA 指出，对 eVTOL 而言<strong>碰撞预防（防撞雷达/视觉感知）比碰撞缓解更重要</strong>；降落伞/弹道回收系统（BRS）在 eVTOL 上的有效性仍需进一步评估。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- HAZARD ANALYSIS -->
+<section class="alt" id="hazard">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Hazard Analysis & FTA</div>
+      <h2>危害分析与故障树：把安全目标量化</h2>
+      <p>灾难性失效必须"极不可能"且不源于单点失效——这是 EH216-S 专用条件的硬指标。</p>
+      <span class="sec-tag">来源：ARP4761 / AC 25.1309-1B / EASA SC-VTOL / CAAC 专用条件</span>
+    </div>
+    <div class="grid-2" style="grid-template-columns:1.1fr .9fr;gap:24px">
+      <div class="chart-card reveal">
+        <div class="chart-title">失效状态等级与概率目标（ARP4761）</div>
+        <div class="chart-sub">横轴为对数刻度：灾难性失效目标 10⁻⁹/飞行小时，等同大型干线客机</div>
+        <div class="chart-wrap"><svg class="chart" id="chartProb" viewBox="0 0 540 270"></svg></div>
+        <div class="legend"><span><i style="background:#fb7185"></i>灾难性/危险</span><span><i style="background:#fbbf24"></i>较大</span><span><i style="background:#34d399"></i>较小/无影响</span></div>
+      </div>
+      <div class="card reveal">
+        <h3>故障树分析（FTA）示意</h3>
+        <p style="font-size:13px">以"失去控制导致坠毁"（灾难性）为顶事件，展示自上而下的失效逻辑：</p>
+        <div class="fta" style="margin-top:16px">
+          <div class="fta-top">顶事件：失去控制 / 无法安全着陆<br><span style="font-size:11px;color:var(--red)">目标 ≤ 10⁻⁹ / 飞行小时 · 非单点失效</span></div>
+          <div class="fta-gate">OR 门（任一发生）</div>
+          <div class="fta-line"></div>
+          <div class="fta-row">
+            <div class="fta-leaf"><b>动力失效</b><span>多旋翼同时失效</span></div>
+            <div class="fta-leaf"><b>飞控失效</b><span>三套飞控共因</span></div>
+            <div class="fta-leaf"><b>能源失效</b><span>电池热失控/断电</span></div>
+            <div class="fta-leaf"><b>链路失效</b><span>通信中断/干扰</span></div>
+          </div>
+        </div>
+        <p class="note">共因分析（CCA）需覆盖区域安全（ZSA）、特定风险（PRA）与共模分析（CMA），证明冗余之间真正独立——这是 SSA 中最难量化的环节。</p>
+      </div>
+    </div>
+    <div class="table-wrap reveal" style="margin-top:22px">
+      <table>
+        <thead><tr><th>危害 / 失效状态</th><th>典型诱因</th><th>严重度</th><th>EH216-S 的安全措施</th></tr></thead>
+        <tbody>
+          <tr><td>多旋翼失去动力</td><td>电机/电调/桨叶故障、供电中断</td><td><span class="pill p-red">灾难性</span></td><td>16 旋翼相互独立，停转 5 个仍可安全起降；分布式布局提供动力冗余</td></tr>
+          <tr><td>飞控系统失效</td><td>软硬件故障、共因失效</td><td><span class="pill p-red">灾难性</span></td><td>三套飞控系统冗余 + Fail-Safe，故障无缝接管，实时自评估健康状态</td></tr>
+          <tr><td>电池热失控 / 起火</td><td>电芯失效、过充、撞击、短路</td><td><span class="pill p-red">灾难性</span></td><td>十二组电池独立供电、热失控防护与冗余供电指标；审定中模拟电池起火工况</td></tr>
+          <tr><td>通信链路中断</td><td>4G/5G 掉线、电磁干扰、攻击</td><td><span class="pill p-amber">危险</span></td><td>三重冗余通信架构与抗干扰标准；地面控制站实时监控与应急接管</td></tr>
+          <tr><td>极端天气 / 强风</td><td>雷暴、暴雨、风切变、低温</td><td><span class="pill p-amber">危险</span></td><td>极端环境适应性验证；运营限定昼间、避开恶劣气象</td></tr>
+          <tr><td>感知性能局限（SOTIF）</td><td>雨雾/强光下 GNSS/视觉偏差</td><td><span class="pill p-amber">危险</span></td><td>融合算法实现厘米级精准起降；预设航线 + 隔离空域 + 视线内运行降低暴露</td></tr>
+          <tr><td>碰撞 / 侵入</td><td>鸟撞、外来物、多机冲突</td><td><span class="pill p-amber">危险</span></td><td>应急降落伞开伞试验；集群调度中心统一规划，隔离空域减少冲突</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note reveal">参考资料：EASA SC-VTOL（Enhanced 级灾难性失效 10⁻⁹、Basic 级 0–1 乘客为 10⁻⁷）；CAAC《动力提升航空器适航标准》AC-21-AA-2025 与 EH216-S 专用条件；ARP4761A（2023）失效状态分级。</p>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="arch">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Safety Architecture</div>
+      <h2>系统安全架构：把冗余做进基因</h2>
+      <p>教材 Page 87 典型安全架构（1oo1 / 1oo2 / 2oo2 / 1oo3 / 2oo3 / 1oo2D）的工程化落地。</p>
+    </div>
+    <div class="arch reveal">
+      <div class="chart-title" style="text-align:center;margin-bottom:6px">EH216-S 分布式冗余安全架构</div>
+      <div class="chart-sub" style="text-align:center">感知 → 决策 → 执行 → 能源 → 地面，全链路多重备份</div>
+      <div class="arch-grid">
+        <div class="arch-node"><b>🛰️ 导航感知</b><span>GNSS 精准定位 · 多类传感器冗余</span></div>
+        <div class="arch-node"><b>🧠 飞控决策</b><span>三套飞控 · Fail-Safe 实时自评估</span></div>
+        <div class="arch-node"><b>🌀 动力执行</b><span>8 轴 16 旋翼 · 电机相互独立</span></div>
+        <div class="arch-node"><b>🔋 能源供给</b><span>十二组电池 · 独立冗余供电</span></div>
+      </div>
+      <div class="arch-grid" style="grid-template-columns:1fr;margin-top:12px">
+        <div class="arch-node" style="background:rgba(52,211,153,.07);border-color:rgba(52,211,153,.3)"><b>📡 地面指挥调度中心</b><span>4G/5G 高速链路实时联动 · 多机集群管理 · 实时监控与应急接管 · 三重冗余通信架构</span></div>
+      </div>
+      <div class="arch-grid">
+        <div class="arch-big"><div class="v">16</div><div class="l">独立旋翼 / 电机</div></div>
+        <div class="arch-big"><div class="v">5</div><div class="l">停转仍可安全飞行</div></div>
+        <div class="arch-big"><div class="v">3</div><div class="l">独立飞控系统</div></div>
+        <div class="arch-big"><div class="v">12</div><div class="l">冗余电池组</div></div>
+      </div>
+      <p class="note">"停转 5 个螺旋桨后仍能安全飞行和起降"来自亿航副总裁公开采访（南都/齐鲁晚报，2025）；另有资料称需验证任意 4 个电机失效下的安全降落能力，不同来源口径略有差异，均指向分布式动力的故障包容能力。</p>
+    </div>
+    <div class="grid-3" style="margin-top:20px">
+      <div class="card reveal"><h3>🎯 单一失效准则</h3><p>专用条件要求：每个灾难性失效状态概率极不可能（10⁻⁹），<strong>且不能由单点失效导致</strong>。这直接驱动了飞控、能源、通信的三重冗余设计。</p></div>
+      <div class="card reveal"><h3>🧩 共因失效防护</h3><p>冗余不是简单叠加。电池包之间需保持独立性并保证垂直起降时的耐撞性；高压配电与电池系统潜在的热失控是分布式推进带来的新风险。</p></div>
+      <div class="card reveal"><h3>⚖️ 冗余的重量代价</h3><p>冗余设计本身增加故障点与重量。峰飞航空招股书披露，冗余测试成本占研发总投入比例高达 35%——安全与工程可行性之间需要精妙平衡。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SAFETY DESIGN -->
+<section class="alt" id="design">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Hardware / Software / Physical Safety Design</div>
+      <h2>安全设计：电池、软件与物理防护</h2>
+      <p>从电气、机械、化学多维度落实安全需求，其中航空级电池是最核心也最薄弱的环节。</p>
+      <span class="sec-tag">来源：第五章 PDF Page 87 + 真实行业数据</span>
+    </div>
+    <div class="grid-2" style="margin-bottom:22px">
+      <div class="card reveal">
+        <h3>🔋 航空电池：安全的最强约束</h3>
+        <p>动力电池热失效的物理隔离与定向排气，已成为保障乘员生存能力的<strong>硬性红线</strong>。EASA SC-VTOL 符合性方法要求：单体内触发热失控后，至少 8 小时监测期内不得向其他电芯蔓延。</p>
+        <p>航空电池与汽车电池的标准存在数量级差距：</p>
+        <div class="table-wrap" style="margin-top:12px"><table style="min-width:0">
+          <thead><tr><th>指标</th><th>汽车动力电池 GB 38031</th><th>航空电池 CTSO-C179b</th></tr></thead>
+          <tbody><tr><td>热失控防护</td><td>5 分钟不蔓延</td><td><span class="pill p-green">30 分钟不蔓延</span></td></tr>
+          <tr><td>循环寿命</td><td>1000 次（容量≥80%）</td><td>2000 次（容量≥90%）</td></tr>
+          <tr><td>能量密度</td><td>无硬性要求</td><td>通常 ≥250 Wh/kg</td></tr></tbody>
+        </table></div>
+        <p class="note">EH216-S 传统锂电池续航 25 分钟；2024 年 11 月搭载欣界能源固态电池（480 Wh/kg）测试续航达 48 分 10 秒，提升 60%–90%，固态版本计划 2026 年量产——能量密度提升同时改善热安全。</p>
+      </div>
+      <div class="card reveal">
+        <h3>🛡️ 多层防护措施</h3>
+        <p><b style="color:var(--txt)">电气安全：</b>绝缘防护、短路保护、供电保护、高压互锁、故障检测；按 DO-160 完成温度高度、冲击 Crash Safety（20g）、防爆、雷击瞬变（Section 22）、静电放电（15 kV）等环境鉴定。</p>
+        <p><b style="color:var(--txt)">机械/化学安全：</b>振动/碰撞/滚翻防护、IP 防护、防呆设计、防火阻燃、防腐蚀；动力电池化学/热稳定性、热失控预警及控制。</p>
+        <p><b style="color:var(--txt)">应急机制：</b>Fail-Safe 故障保护 + 地面中心应急接管 + 应急降落伞；审定中进行过应急降落伞开伞试验与单动力单元失效试验（任意旋翼关闭仍稳定降落）。</p>
+        <p><b style="color:var(--txt)">软件安全：</b>飞控软件按 DO-178C 保障；感知决策按 SOTIF 处理性能边界；地面调度与数据链按信息安全流程做 TARA。</p>
+      </div>
+    </div>
+    <div class="chart-card reveal">
+      <div class="chart-title">安全裕度的量化trade-off：固态电池带来的能力跃升</div>
+      <div class="chart-sub">传统锂电池 vs 固态电池（欣界能源，480 Wh/kg）· 数据来源：百度百科词条、多家媒体报道</div>
+      <div class="chart-wrap"><svg class="chart" id="chartBattery" viewBox="0 0 540 240"></svg></div>
+    </div>
+  </div>
+</section>
+
+<!-- VERIFICATION -->
+<section id="verify">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Safety Verification & Validation</div>
+      <h2>安全测试验证：用 4 万架次试飞说话</h2>
+      <p>V 模型右侧：从逻辑场景到整机安全确认，用海量验证把设计假设变成可信证据。</p>
+    </div>
+    <div class="grid-4" style="margin-bottom:22px">
+      <div class="stat reveal"><div class="num safe-txt"><span class="cnt" data-to="40000">0</span><span class="unit">+</span></div><div class="label">取证前审定试飞架次</div></div>
+      <div class="stat reveal"><div class="num safe-txt"><span class="cnt" data-to="450">0</span><span class="unit">+ 科目</span></div><div class="label">符合性验证试验</div></div>
+      <div class="stat reveal"><div class="num safe-txt"><span class="cnt" data-to="500">0</span><span class="unit">+ 项</span></div><div class="label">评估测试科目</div></div>
+      <div class="stat reveal"><div class="num safe-txt"><span class="cnt" data-to="8">0</span><span class="unit">万+ 架次</span></div><div class="label">累计安全飞行</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card reveal"><h3>🧪 审定中的极端工况验证</h3><p>中国民航局组织 450 多个科目验证试验，<strong>从极端气候模拟到人为制造硬件故障，甚至模拟电池起火等极端情况</strong>。具体包括：最大续航飞行、单动力单元失效、极端环境温度、电磁兼容性、应急降落伞开伞等试验（教材与官方资料口径）。</p><p>取证三阶段：①2021.09–2022.02 标准框架与专用条件发布；②2022.03–2023.08 实验室模拟、地面测试与审定试飞；③2023.09–10 完成 500 余项符合性验证，累计试飞 4 万架次。</p></div>
+      <div class="card reveal"><h3>📈 运行数据作为持续证据</h3><p> EH216-S 全球累计安全飞行超 8 万架次（部分来源称 9 万+，覆盖 23 个国家/地区）。2025 年 12 月完成跨越琼州海峡 22 公里点对点飞行，用时 18 分钟。2026 年央视春晚合肥分会场 16 台编队同飞，验证集群协同。</p><p>教材强调：开放世界复杂性下，安全案例不是静态文档，而需建立<strong>在役监测与报告机制（ISMR）</strong>，采集实场飞行遥测数据并反馈至安全管理系统，持续迭代维护。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SAFETY ARGUMENT -->
+<section class="alt" id="argument">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Safety Argument · GSN</div>
+      <h2>运行安全论证：用 GSN 组织安全案例</h2>
+      <p>教材 Page 77：安全论证（Safety Argument）采用 GSN / SACM，把安全主张与证据关联。</p>
+      <span class="sec-tag">四证 = 设计、生产、单机、运营全链条的合规论证</span>
+    </div>
+    <div class="grid-2" style="grid-template-columns:1.15fr .85fr;gap:24px">
+      <div class="card reveal">
+        <h3>EH216-S 安全案例（GSN 结构化示意）</h3>
+        <ul class="gsn-tree" style="margin-top:14px">
+          <li data-tag="G1"><b>顶层主张：</b>EH216-S 在既定运行边界内载人运行的风险可接受。</li>
+          <li class="level2" data-tag="S1"><b>论据—设计合规：</b>TC 证明设计符合专用条件，灾难性失效 10⁻⁹ 且非单点失效。</li>
+          <li class="level2" data-tag="S2"><b>论据—制造一致：</b>PC 证明质量体系可持续生产符合批准设计的航空器。</li>
+          <li class="level2" data-tag="S3"><b>论据—单机适航：</b>AC 证明每架航空器符合型号设计且处于安全状态。</li>
+          <li class="level2" data-tag="S4"><b>论据—运行合规：</b>OC 证明运营人具备持续安全运行能力。</li>
+          <li class="level3" data-tag="Sn1"><b>支持证据：</b>4 万+ 审定试飞、450+ 科目、8 万+ 安全飞行、多维冗余设计。</li>
+          <li class="level3" data-tag="Sn2"><b>运行约束：</b>隔离空域、昼间、良好气象、远程机组视线内、暂不支持水上起降。</li>
+          <li class="level2" data-tag="C1"><b>上下文：</b>CCAR-92 部运行安全管理规则 · 专用条件 · 隔离空域运行场景。</li>
+        </ul>
+      </div>
+      <div class="card reveal">
+        <h3>⚠️ 论证的边界与缺口</h3>
+        <p><b style="color:var(--amber)">流程合规 ≠ 已证明安全。</b> 教材与行业实践强调：仅证明遵循组织流程，却缺少量化残余风险证据（如 SOTIF 指数基准），监管方可驳回适航主张。</p>
+        <p><b style="color:var(--amber)">系统之系统覆盖。</b> 安全论证不能仅局限飞行器适航，还须界定 UTM 数据链路可用性、垂直起降场地面基础设施、微气候风切变等边界条件。</p>
+        <p><b style="color:var(--amber)">跨领域融合。</b> 商用 eVTOL 需融合 DO-178C/DO-254（航空软件硬件）、ISO 21448/ISO PAS 8800（汽车预期功能/AI 安全）与 JARUS SORA（无人机运行风险）等多体系标准。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STANDARDS -->
+<section id="standards">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Airworthiness Standards</div>
+      <h2>适航标准与法规：一元突破，体系待建</h2>
+      <p>教材 Page 28–31：从"个案突破"走向"体系构建"，全球标准处于过渡期。</p>
+    </div>
+    <div class="grid-2" style="margin-bottom:22px">
+      <div class="card reveal"><h3>🇨🇳 中国方案：专用条件突破</h3><p>CAAC 制定《亿航 EH216-S 型无人驾驶航空器系统专用条件》，是全球首个载人无人驾驶航空器系统的适航标准，被国际民航组织纳入 2022 年创新案例库。核心要求：灾难性失效 10⁻⁹、非单点失效、三重冗余通信、电池热失控防护与冗余供电、地面控制站实时监控与应急接管。</p><p>但整机、运营、零部件、维护等系统性标准仍处起步阶段，标准体系空白点较多。</p></div>
+      <div class="card reveal"><h3>🌍 全球对比：理念相通，指标有别</h3><p>中美欧对纯电、9 座级以下 eVTOL 均采用基于性能（Performance-based）思路，锚定"继续安全飞行和着陆（CSFL）"目标。差异在于：EASA 分 Basic/Enhanced 两类，Enhanced 强制 10⁻⁹；FAA 强调安全连续体与安全等级动态；中国以专用条件实现个案突破。</p></div>
+    </div>
+    <div class="table-wrap reveal">
+      <table>
+        <thead><tr><th>维度</th><th>FAA（美）AC 21.17-4</th><th>EASA（欧）SC-VTOL</th><th>CAAC（中）AC-21-AA-2025</th></tr></thead>
+        <tbody>
+          <tr><td>适用重量</td><td>≤5,670 kg</td><td>5,700 kg</td><td>≤5,700 kg</td></tr>
+          <tr><td>最大乘客</td><td>6 座及以下</td><td>9 座及以下</td><td>9 座及以下</td></tr>
+          <tr><td>推进类型</td><td>纯电</td><td>纯电及混动</td><td>分布式电推进（纯电）</td></tr>
+          <tr><td>灾难性失效目标</td><td>性能导向，按安全连续体动态调整</td><td><span class="pill p-red">Enhanced 10⁻⁹</span> / Basic 10⁻⁷</td><td><span class="pill p-red">极不可能 10⁻⁹</span> 且非单点失效</td></tr>
+          <tr><td>核心理念</td><td>功能与可靠性（F&R）测试</td><td>单一失效非灾难性原则</td><td>动力装置安全性分析</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note reveal">来源：eVTOL 构型适航难度分析及全球适航规章对比（行业研究，2026）；教材 Page 29 提及 EASA SC-VTOL-01 与 FAA AAM 框架。注：各机构条款仍在演进，数值以最新规章为准。</p>
+  </div>
+</section>
+
+<!-- RISKS -->
+<section class="alt" id="risks">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">Safety Gaps & Recommendations</div>
+      <h2>安全短板与改进建议</h2>
+      <p>已取得的安全成果值得肯定，但全方位安全分析必须直面尚未闭合的风险。</p>
+    </div>
+    <div class="card reveal" style="margin-bottom:22px">
+      <div class="risk-row"><span class="risk-lv r-h">高</span><div class="risk-body"><b>电池热失控与火灾</b><p>航空电池是最薄弱环节，热失控可能级联为不可控火灾。建议：强化定向排气与物理隔离，落实 8 小时不蔓延验证，建立热失控早期预警与在役健康监测。</p></div></div>
+      <div class="risk-row"><span class="risk-lv r-h">高</span><div class="risk-body"><b>SOTIF / 感知性能边界</b><p>雨雾、强光、GNSS 遮挡下的感知局限可能致险却非故障。建议：扩展 ODD 边界的场景库与概率化 V&V，量化残余风险，避免以流程合规替代安全论证。</p></div></div>
+      <div class="risk-row"><span class="risk-lv r-h">高</span><div class="risk-body"><b>信息安全与电磁攻击</b><p>依赖 4G/5G 链路与地面调度，存在外部攻击/干扰风险。建议：将 TARA 纳入全生命周期，加固链路抗干扰与加密，建立入侵检测与应急接管冗余通道。</p></div></div>
+      <div class="risk-row"><span class="risk-lv r-m">中</span><div class="risk-body"><b>共因失效与冗余真实有效性</b><p>更多电机/控制器/算法引入新故障点。建议：深化 CCA（ZSA/PRA/CMA），在高度集成构型中证明物理隔离与冗余的真实独立，对抗"共因"侵蚀冗余收益。</p></div></div>
+      <div class="risk-row"><span class="risk-lv r-m">中</span><div class="risk-body"><b>高密度城市运行的交互安全</b><p>多机协同、有人机混合空域、微气候风切变等超出单机适航范畴。建议：把 UTM 链路可用性、vertiport 地面设施纳入"系统之系统"安全论证，推进数字空管与数字孪生风险评估。</p></div></div>
+      <div class="risk-row"><span class="risk-lv r-l">低</span><div class="risk-body"><b>碰撞缓解手段有效性</b><p>NASA 指出 BRS/降落伞对 eVTOL 有效性待评估，碰撞预防优先于缓解。建议：持续验证防撞雷达/视觉感知的预防能力，不将应急回收作为主要安全依赖。</p></div></div>
+    </div>
+    <div class="verdict">
+      <div class="v-item reveal"><div class="v-top"><span class="v-name">设计本质安全</span><span class="v-score v-green">较充分 ✓</span></div><div class="meter"><i data-w="86" style="background:linear-gradient(90deg,#34d399,#22d3ee)"></i></div><p>分布式冗余 + Fail-Safe + 全科目录证，把单点失效风险压到极低，架构层面安全裕度扎实。</p></div>
+      <div class="v-item reveal"><div class="v-top"><span class="v-name">运行安全边界</span><span class="v-score v-amber">谨慎可行 ◐</span></div><div class="meter"><i data-w="68" style="background:linear-gradient(90deg,#fbbf24,#fb923c)"></i></div><p>以隔离空域、昼间、视线内等严格限制换取裕度；边界一旦放宽，SOTIF 与交互风险显著上升。</p></div>
+      <div class="v-item reveal"><div class="v-top"><span class="v-name">全域/规模化安全</span><span class="v-score v-red">未闭合 ✗</span></div><div class="meter"><i data-w="35" style="background:linear-gradient(90deg,#fb7185,#f43f5e)"></i></div><p>城市高密度、跨领域标准融合、网络攻击与在役监测等仍是开放问题，需全生命周期持续论证。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- CONCLUSION -->
+<section id="conclusion">
+  <div class="wrap">
+    <div class="conclusion reveal">
+      <div class="eyebrow" style="justify-content:center">Conclusion</div>
+      <h3>结论：一次把失效当作设计起点的系统安全工程实践</h3>
+      <p>EH216-S 的安全能力来自<strong style="color:var(--cyan)">架构冗余、量化安全目标与海量验证证据</strong>三者的闭环：16 旋翼停转 5 个仍可飞行、10⁻⁹ 的非单点失效目标、4 万+ 审定试飞与 8 万+ 安全飞行，共同支撑了它"敢载人"的底气。</p>
+      <p class="big">取证证明的是"在既定边界内安全"，不是"在任何场景都安全"。</p>
+      <p>面向未来，真正的挑战在于把安全论证从单机适航扩展到"飞行器—空管—基础设施—人"的系统之系统，并把安全案例作为持续迭代的工程成果物。对课程而言，本案例最值得学习的正是教材反复强调的那句话：<strong style="color:var(--amber)">用证据支撑主张，用边界约束风险，用全生命周期维护安全</strong>。</p>
+    </div>
+  </div>
+</section>
+
+<!-- REFERENCES -->
+<section class="alt" id="references">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="eyebrow">References</div>
+      <h2>参考文献与数据来源</h2>
+      <p>教材 PDF（课程核心依据）与公开真实来源，按引用顺序编号。</p>
+    </div>
+    <div class="ref-grid">
+      <div class="ref pdfref reveal"><span class="rn">[P1]</span><span class="rt"><b>课程教材 · 第五章 飞行汽车产业分析及支撑技术</b>PDF，张玉新，吉林大学 · Page 34–87 安全系统工程专题，Page 78 飞行汽车安全研究点，Page 88 作业2要求（本报告方法论主依据）</span></div>
+      <div class="ref pdfref reveal"><span class="rn">[P2]</span><span class="rt"><b>课程教材 · 第四章 飞行汽车的现状及展望</b>PDF，张玉新，吉林大学 · 扫描版图片 PDF（文本工具无法解析），主题为发展现状、市场监管现状与趋势分析，本报告以公开真实数据补充其背景内容</span></div>
+      <a class="ref reveal" href="https://baike.baidu.com/item/%E4%BA%BF%E8%88%AAEH216-S%E5%9E%8B%E6%97%A0%E4%BA%BA%E9%A9%BE%E9%A9%B6%E8%88%AA%E7%A9%BA%E5%99%A8%E7%B3%BB%E7%BB%9F%E4%B8%93%E7%94%A8%E6%9D%A1%E4%BB%B6/60154783" target="_blank" rel="noopener"><span class="rn">[1]</span><span class="rt"><b>EH216-S 专用条件（百度百科词条）</b>灾难性失效 10⁻⁹、三重冗余通信、电池热失控防护、地面站应急接管、审定三阶段与 4 万架次试飞</span></a>
+      <a class="ref reveal" href="https://www.ql1d.com/general/26376414.html" target="_blank" rel="noopener"><span class="rn">[2]</span><span class="rt"><b>南都/齐鲁晚报 · 无人驾驶"飞的"如何保障安全</b>亿航副总裁采访：16 螺旋桨、三套飞控、十二组电池、停转 5 个仍可安全飞行</span></a>
+      <a class="ref reveal" href="https://3w.huanqiu.com/a/de583b/4QK4FAGdS3v" target="_blank" rel="noopener"><span class="rn">[3]</span><span class="rt"><b>环球时报 · 记者亲身体验国产"飞的"</b>4 万余架次试飞、450+ 科目（含模拟电池起火）、8 万+ 安全飞行、琼州海峡 22 公里飞行</span></a>
+      <a class="ref reveal" href="https://baike.baidu.com/item/EH216-S%E6%97%A0%E4%BA%BA%E9%A9%BE%E9%A9%B6%E8%88%AA%E7%A9%BA%E5%99%A8/64537562" target="_blank" rel="noopener"><span class="rn">[4]</span><span class="rt"><b>EH216-S 无人驾驶载人航空器系统（百度百科）</b>全备份设计、Fail-Safe、GNSS/融合算法、固态电池 480 Wh/kg 续航 48 分 10 秒</span></a>
+      <a class="ref reveal" href="https://dikongjingki.com/news/4576" target="_blank" rel="noopener"><span class="rn">[5]</span><span class="rt"><b>低空经济网 · eVTOL 从研发图纸到商业载客</b>冗余设计 Fail-Safe/Fail-Operational、任意 4 电机失效验证、汽车 vs 航空电池指标对比</span></a>
+      <a class="ref reveal" href="https://ftastudio.app/standards/arp-4761" target="_blank" rel="noopener"><span class="rn">[6]</span><span class="rt"><b>SAE ARP4761 / AC 25.1309-1B（FTA Studio 整理）</b>FHA→PSSA→SSA 流程、失效状态分级与概率目标（10⁻⁹/10⁻⁷/10⁻⁵）、DAL 分配</span></a>
+      <a class="ref reveal" href="https://legalclarity.org/evtol-certification-process-and-regulatory-standards/" target="_blank" rel="noopener"><span class="rn">[7]</span><span class="rt"><b>eVTOL Certification: FAA and EASA Rules Explained</b>SC-VTOL Enhanced/Basic 分类、10⁻⁹ 目标、TC/PC/AC 流程、电池热失控 8 小时不蔓延要求</span></a>
+      <a class="ref reveal" href="http://www.digauto.biz/index.php?id=259" target="_blank" rel="noopener"><span class="rn">[8]</span><span class="rt"><b>测迅智库 · eVTOL 安全验证与 ADS 严苛测试</b>GSN 安全案例、10⁻⁹ 指标、系统之系统覆盖、跨领域融合、ISMR 在役监测</span></a>
+      <a class="ref reveal" href="http://mp.weixin.qq.com/s?__biz=Mzk2NDE0MDAyOQ==&mid=2247484611" target="_blank" rel="noopener"><span class="rn">[9]</span><span class="rt"><b>eVTOL 构型适航难度分析及全球适航规章对比</b>CAAC/FAA/EASA 对比表、10⁻⁹/10⁻⁷ 目标、单点失效准则与鸟撞安全指标</span></a>
+      <a class="ref reveal" href="https://ewsemi.com/NewsDetail/6807707.html" target="_blank" rel="noopener"><span class="rn">[10]</span><span class="rt"><b>电动垂直起降飞行器技术现状与发展综述</b>EH216-S 专用条件 10⁻⁹ 非单点失效、视线内飞行限制、电池独立性与 BRS 评估</span></a>
+      <a class="ref reveal" href="https://skytvnews.com/?hyzq/549.html" target="_blank" rel="noopener"><span class="rn">[11]</span><span class="rt"><b>全球首款四证齐全载人 eVTOL 飞临香江</b>全备份安全理念、Fail-Safe、厘米级起降、运营限制（隔离空域/昼间/视线内/不支持水上起降）</span></a>
+    </div>
+    <p class="note reveal">说明：标注 [P1][P2] 的两份 PDF 为本课程教材，是作业2方法论与要求的直接来源；第四章 PDF 为扫描版图片格式，本次未能解析其正文文本，相关背景数据以公开真实来源补充。证据截止 2026-11-22，规章条款以最新官方版本为准。本报告为课程作业，不构成适航审定或投资建议。</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand safe-txt">EH216-S · 全方位深度安全分析</div>
+        <div class="foot-note">课程作业-2：结合系统安全工程的各个方面，针对飞行汽车产品进行全方位深度安全分析。作业形式：Web 网页 · 入口文件：index.html。研究对象沿用作业1选型——亿航智能 EH216-S。</div>
+      </div>
+      <div class="foot-meta">
+        证据截止：2026-11-22<br>
+        依据：课程教材第四/五章 · CAAC · EHang IR<br>
+        Fundamentals of Flying Vehicle Technology · 2026
+      </div>
+    </div>
+    <div class="disclaimer">免责声明：本页面为《飞行汽车技术基础》课程作业，分析基于公开资料与课程教材，仅用于学术与技术探讨。安全数据涉及企业公开披露与媒体报道，不同来源口径可能存在差异，已在文中据实标注。本报告不构成适航审定结论、安全认证或投资建议。</div>
+  </div>
+</footer>
+
+<button id="toTop" aria-label="返回顶部">↑</button>
+
+<script>
+const bar=document.getElementById('progress');
+const toTop=document.getElementById('toTop');
+function onScroll(){
+  const h=document.documentElement.scrollHeight-window.innerHeight;
+  bar.style.width=(window.scrollY/h*100)+'%';
+  toTop.classList.toggle('show',window.scrollY>500);
+}
+window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+toTop.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+
+const tog=document.getElementById('navToggle'),links=document.getElementById('navLinks');
+tog.addEventListener('click',()=>links.classList.toggle('open'));
+links.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>links.classList.remove('open')));
+
+const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+function runCounter(el){const to=+el.dataset.to,start=performance.now(),dur=1400;
+  function step(t){let p=Math.min((t-start)/dur,1);let e=1-Math.pow(1-p,3);el.textContent=Math.round(to*e).toLocaleString();if(p<1)requestAnimationFrame(step);}
+  requestAnimationFrame(step);}
+const cio=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){runCounter(e.target);cio.unobserve(e.target);}})},{threshold:.6});
+document.querySelectorAll('.cnt').forEach(el=>cio.observe(el));
+
+const mio=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.style.width=e.target.dataset.w+'%';mio.unobserve(e.target);}})},{threshold:.6});
+document.querySelectorAll('.meter i').forEach(el=>mio.observe(el));
+
+const secs=[...document.querySelectorAll('section[id],header[id]')];
+const navAs=[...document.querySelectorAll('.nav-links a')];
+const nio=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){navAs.forEach(a=>a.style.color='');const a=navAs.find(x=>x.getAttribute('href')==='#'+e.target.id);if(a)a.style.color='var(--red)';}})},{rootMargin:'-45% 0px -50% 0px'});
+secs.forEach(s=>nio.observe(s));
+
+/* ===== Chart: failure probability ladder (log scale) ===== */
+(function(){
+  const s=document.getElementById('chartProb');if(!s)return;
+  const W=540,H=270,pad={l:78,r:20,t:16,b:52};
+  const data=[
+    {label:'灾难性 Catastrophic',exp:-9,color:'#fb7185',d:'极不可能 · DAL A'},
+    {label:'危险 Hazardous',exp:-7,color:'#f97316',d:'极微小 · DAL B'},
+    {label:'较大 Major',exp:-5,color:'#fbbf24',d:'微小 · DAL C'},
+    {label:'较小 Minor',exp:-3,color:'#34d399',d:'可能 · DAL D'},
+    {label:'无安全影响',exp:0,color:'#22d3ee',d:'无要求 · DAL E'}
+  ];
+  const iw=W-pad.l-pad.r,ih=H-pad.t-pad.b;
+  // map exponent -9..0 to y from bottom to top but linear-in-exponent (log probability)
+  const yOf=exp=>pad.t+ih-((exp+9)/9)*ih;
+  let out='';
+  // gridlines for each decade
+  for(let e=-9;e<=0;e+=2){
+    let y=yOf(e);
+    out+=`<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="rgba(255,255,255,.07)"/>`;
+    out+=`<text x="${pad.l-10}" y="${y+4}" fill="#6f83a8" font-size="10" text-anchor="end">10^${e}</text>`;
+  }
+  const bw=iw/data.length*.6;
+  data.forEach((d,i)=>{
+    let x=pad.l+iw*(i+.5)/data.length-bw/2;
+    let y=yOf(d.exp);
+    let h=pad.t+ih-y;
+    out+=`<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(h,3)}" rx="5" fill="${d.color}" fill-opacity=".8"/>`;
+    out+=`<text x="${x+bw/2}" y="${y-8}" fill="${d.color}" font-size="11" font-weight="800" text-anchor="middle">10^${d.exp}</text>`;
+    // label two lines
+    out+=`<text x="${x+bw/2}" y="${H-30}" fill="#e8eefc" font-size="9.5" text-anchor="middle">${d.label.split(' ')[0]}</text>`;
+    out+=`<text x="${x+bw/2}" y="${H-16}" fill="#6f83a8" font-size="9" text-anchor="middle">${d.d.split(' ')[0]}</text>`;
+  });
+  out+=`<line x1="${pad.l}" y1="${pad.t+ih}" x2="${W-pad.r}" y2="${pad.t+ih}" stroke="rgba(255,255,255,.2)"/>`;
+  s.innerHTML=out;
+})();
+
+/* ===== Chart: battery endurance comparison ===== */
+(function(){
+  const s=document.getElementById('chartBattery');if(!s)return;
+  const W=540,H=240,pad={l:56,r:24,t:24,b:46};
+  const data=[{label:'传统锂电池',v:25,sub:'~250 Wh/kg',color:'#3b82f6'},{label:'固态电池（测试）',v:48.2,sub:'480 Wh/kg',color:'#34d399'}];
+  const max=55,iw=W-pad.l-pad.r,ih=H-pad.t-pad.b;
+  let out='';
+  for(let i=0;i<=5;i++){
+    let y=pad.t+ih*i/5,val=Math.round(max*(1-i/5));
+    out+=`<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="rgba(255,255,255,.07)"/>`;
+    out+=`<text x="${pad.l-10}" y="${y+4}" fill="#6f83a8" font-size="10" text-anchor="end">${val}</text>`;
+  }
+  const bw=iw/data.length*.45;
+  data.forEach((d,i)=>{
+    let x=pad.l+iw*(i+.5)/data.length-bw/2;
+    let h=(d.v/max)*ih;let y=pad.t+ih-h;
+    out+=`<defs><linearGradient id="bg${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${d.color}" stop-opacity=".9"/><stop offset="1" stop-color="${d.color}" stop-opacity=".25"/></linearGradient></defs>`;
+    out+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="7" fill="url(#bg${i})"/>`;
+    out+=`<text x="${x+bw/2}" y="${y-9}" fill="#e8eefc" font-size="14" font-weight="800" text-anchor="middle">${d.v} min</text>`;
+    out+=`<text x="${x+bw/2}" y="${y-24}" fill="${d.color}" font-size="10" text-anchor="middle">${d.sub}</text>`;
+    out+=`<text x="${x+bw/2}" y="${H-14}" fill="#9fb0d0" font-size="11" text-anchor="middle">${d.label}</text>`;
+  });
+  out+=`<text x="${W-pad.r}" y="${H-14}" fill="#6f83a8" font-size="9" text-anchor="end">续航时间（分钟）</text>`;
+  s.innerHTML=out;
+})();
+</script>
+</body>
+</html>
